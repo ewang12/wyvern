@@ -1049,4 +1049,63 @@ public class ILTests {
         IntegerLiteral five = new IntegerLiteral(10);
         Assert.assertEquals(five, v);
     }
+
+
+    @Test
+    public void testTypeMemberInFunction() throws ParseException {
+
+        String source = ""
+                      + "type IntHolder\n"
+                      + "    type heldType = system.Int\n"
+                      + "    val element: this.heldType\n\n"
+
+                      + "def Identity(holder: IntHolder) : IntHolder\n"
+                      + "    holder\n\n"
+
+                      + "val five: IntHolder = new\n"
+                      + "    type heldType = system.Int\n"
+                      + "    val element: this.heldType = 5\n\n"
+
+                      + "Identity(five)";
+
+        ExpressionAST ast = (ExpressionAST) TestUtil.getNewAST(source);
+
+        GenContext genCtx = GenContext.empty().extend("system", new Variable("system"), null);
+        Expression program = ast.generateIL(genCtx, null);
+
+        ValueType t = program.typeCheck(genCtx);
+    }
+
+
+    @Test
+    @Category(CurrentlyBroken.class)
+    public void testDependentType() throws ParseException {
+
+        String source = ""
+                      + "type IntHolder\n"
+                      + "    type heldType = system.Int\n"
+                      + "    val element: this.heldType\n\n"
+
+                      + "def Identity(holder: IntHolder, heldType: holder.heldType) : holder.heldType\n"
+                      + "    holder.element\n\n"
+
+                      + "val five: IntHolder = new\n"
+                      + "    type heldType = system.Int\n"
+                      + "    val element: this.heldType = 5\n\n"
+
+                      + "Identity(five, five.heldType)";
+
+        ExpressionAST ast = (ExpressionAST) TestUtil.getNewAST(source);
+
+        GenContext genCtx = GenContext.empty().extend("system", new Variable("system"), null);
+        Expression program = ast.generateIL(genCtx, null);
+
+        ValueType t = program.typeCheck(genCtx);
+
+        Assert.assertEquals(Util.intType(), t);
+
+        Value v = program.interpret(EvalContext.empty());
+        IntegerLiteral five = new IntegerLiteral(5);
+        Assert.assertEquals(five, v);
+    }
 }
